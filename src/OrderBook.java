@@ -1,15 +1,28 @@
 import java.util.Vector;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class OrderBook {
-		private Vector<Order> buyOrders;
-		private Vector<Order> sellOrders;
-		
+		Vector<Order> buyOrders;
+		Vector<Order> sellOrders;
+		private static Lock lock = new ReentrantLock(true);
+		private static Condition newTransaction= lock.newCondition();
 		public OrderBook() {
 			this.buyOrders = new Vector<Order>();
 			this.sellOrders = new Vector<Order>();
 		}
-		
-		private void processBuyOrder(Order order) {
+		public Vector<Order> getBuyOrders(){
+			return buyOrders;
+		}
+		public Vector<Order> getSellOrders(){
+			return buyOrders;
+		}
+		void processBuyOrder(Order order) {
+			lock.lock();
+			try {
 			int n = sellOrders.size();
 			if(n!=0) {
 			if (sellOrders.lastElement().getPrice()<=order.getPrice()) {
@@ -37,10 +50,16 @@ public class OrderBook {
 			}
 			}
 			}
-			System.out.println("Border");
 			addBuyOrder(order);
+			newTransaction.signalAll();
+			}finally {
+				lock.unlock();
+			}
+			
 		}
-		private void processSellOrder(Order order) {
+		void processSellOrder(Order order) {
+			lock.lock();
+			try{
 			int n = buyOrders.size();
 			if(n!=0) {
 			if (buyOrders.lastElement().getPrice()<=order.getPrice()) {
@@ -70,6 +89,11 @@ public class OrderBook {
 			}
 			
 			addSellOrder(order);
+			newTransaction.signalAll();
+			}
+			finally {
+				lock.unlock();
+			}
 		}
 		
 		private void addBuyOrder(Order order) {
@@ -113,11 +137,14 @@ public class OrderBook {
 
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
+		System.out.println("Test Run");
 		Order order1=new Order("Alex","GOOG",10,10.11,true);
 		Order order2=new Order("Blex","GOOG", 10,10.12,false);
 		OrderBook b = new OrderBook();
 		b.processBuyOrder(order1);
-		b.processSellOrder(order2);
+		b.processBuyOrder(order2);
+		b.processBuyOrder(order2);
+		b.processBuyOrder(order2);
 		System.out.println(b.buyOrders.size());
 		for (Object o : b.buyOrders) {
 			System.out.print("buy");
